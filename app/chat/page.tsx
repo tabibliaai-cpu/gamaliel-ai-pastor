@@ -1,46 +1,29 @@
 'use client';
-
 import { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import { BookOpen, Send, Plus, Menu, LogOut, User } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'kn', name: 'Kannada' },
-  { code: 'ml', name: 'Malayalam' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'pa', name: 'Punjabi' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'or', name: 'Odia' },
-  { code: 'as', name: 'Assamese' },
-  { code: 'ur', name: 'Urdu' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ru', name: 'Russian' },
-];
+interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+}
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [language, setLanguage] = useState('en');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConvId, setCurrentConvId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [usageInfo, setUsageInfo] = useState<{ used: number; limit: number; tier: string } | null>(null);
-  const [error, setError] = useState('');
-  const [darkMode, setDarkMode] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient();
   const router = useRouter();
@@ -48,6 +31,7 @@ export default function ChatPage() {
   useEffect(() => {
     checkAuth();
     fetchUsage();
+    fetchConversations();
   }, []);
 
   useEffect(() => {
@@ -67,29 +51,60 @@ export default function ChatPage() {
     }
   }
 
+  async function fetchConversations() {
+    const res = await fetch('/api/conversations');
+    if (res.ok) {
+      const data = await res.json();
+      setConversations(data);
+    }
+  }
+
+  async function loadConversation(convId: string) {
+    setCurrentConvId(convId);
+    const res = await fetch(`/api/conversations/${convId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(data.messages || []);
+    }
+  }
+
+  async function startNewConversation() {
+    setCurrentConvId(null);
+    setMessages([]);
+  }
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || loading) return;
+
     const userMsg: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
-    setError('');
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, language, history: messages }),
+        body: JSON.stringify({ message: input, conversationId: currentConvId }),
       });
+
       const data = await res.json();
+
       if (!res.ok) {
-        setError(data.error || 'An error occurred');
+        alert(data.error || 'An error occurred');
+        setMessages(prev => prev.slice(0, -1));
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+        if (!currentConvId) {
+          setCurrentConvId(data.conversationId);
+          fetchConversations();
+        }
         fetchUsage();
       }
     } catch {
-      setError('Network error. Please try again.');
+      alert('Network error');
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setLoading(false);
     }
@@ -100,148 +115,198 @@ export default function ChatPage() {
     router.push('/');
   }
 
-  const dm = darkMode;
-
   return (
-    <div className={`flex flex-col h-screen ${dm ? 'bg-[#1a1a2e] text-gray-100' : 'bg-[#fdf6e3] text-gray-900'}`}>
-      {/* Header */}
-      <header className={`flex items-center justify-between px-4 py-3 border-b ${dm ? 'border-gray-700 bg-[#16213e]' : 'border-amber-200 bg-amber-50'}`}>
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">✝️</span>
-          <div>
-            <h1 className="font-bold text-lg text-amber-400">Gamaliel AI Pastor</h1>
-            <p className="text-xs text-gray-400">Guided by Scripture</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={language}
-            onChange={e => setLanguage(e.target.value)}
-            className={`text-sm rounded px-2 py-1 border ${dm ? 'bg-[#1a1a2e] border-gray-600 text-gray-200' : 'bg-white border-amber-300'}`}
-          >
-            {LANGUAGES.map(l => (
-              <option key={l.code} value={l.code}>{l.name}</option>
-            ))}
-          </select>
-          <button onClick={() => setDarkMode(!dm)} className="text-xl" title="Toggle theme">
-            {dm ? '☀️' : '🌙'}
-          </button>
+    <div className="flex h-screen bg-[#0f172a] text-white">
+      {/* Sidebar */}
+      <div className={`${
+        sidebarOpen ? 'w-64' : 'w-0'
+      } bg-[#1e293b] transition-all duration-300 flex flex-col border-r border-gray-700 overflow-hidden`}>
+        <div className="p-4 border-b border-gray-700">
           <button
-            onClick={() => router.push('/dashboard')}
-            className="text-sm px-3 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white"
-          >Dashboard</button>
-          <button onClick={signOut} className="text-sm px-3 py-1 rounded bg-gray-600 hover:bg-gray-700 text-white">Sign Out</button>
+            onClick={startNewConversation}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-lg bg-[#334155] hover:bg-[#475569] transition-colors"
+          >
+            <Plus size={18} />
+            <span>New Chat</span>
+          </button>
         </div>
-      </header>
 
-      {/* Usage bar */}
-      {usageInfo && (
-        <div className={`px-4 py-2 text-xs flex items-center gap-2 ${dm ? 'bg-[#0f3460]' : 'bg-amber-100'}`}>
-          <span className="font-semibold uppercase text-amber-400">{usageInfo.tier}</span>
-          <span className={dm ? 'text-gray-300' : 'text-gray-600'}>
-            {usageInfo.used} / {usageInfo.limit} messages today
-          </span>
-          <div className="flex-1 bg-gray-700 rounded-full h-1.5 max-w-xs">
-            <div
-              className="bg-amber-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${Math.min((usageInfo.used / usageInfo.limit) * 100, 100)}%` }}
-            />
-          </div>
-          {usageInfo.tier === 'free' && (
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {conversations.map(conv => (
             <button
-              onClick={() => router.push('/dashboard#upgrade')}
-              className="ml-auto text-amber-400 underline hover:text-amber-300"
-            >Upgrade</button>
-          )}
+              key={conv.id}
+              onClick={() => loadConversation(conv.id)}
+              className={`w-full text-left px-4 py-3 rounded-lg text-sm truncate transition-colors ${
+                currentConvId === conv.id
+                  ? 'bg-[#334155]'
+                  : 'hover:bg-[#334155]'
+              }`}
+            >
+              {conv.title}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-            <span className="text-6xl">✝️</span>
-            <h2 className="text-2xl font-semibold text-amber-400">Welcome to Gamaliel AI Pastor</h2>
-            <p className={`text-sm max-w-md ${dm ? 'text-gray-400' : 'text-gray-500'}`}>
-              Ask me anything about the Bible, theology, prayer, Christian living, or seek spiritual guidance.
-              I respond in your chosen language.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-left max-w-lg w-full">
-              {[
-                'What does the Bible say about anxiety?',
-                'Explain the Sermon on the Mount',
-                'How can I grow in my faith?',
-                'What is the meaning of grace?',
-              ].map(q => (
+        <div className="p-4 border-t border-gray-700 space-y-2">
+          {usageInfo && (
+            <div className="text-xs text-gray-400">
+              <div className="flex justify-between mb-1">
+                <span>{usageInfo.tier}</span>
+                <span>{usageInfo.used}/{usageInfo.limit}</span>
+              </div>
+              <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500"
+                  style={{ width: `${(usageInfo.used / usageInfo.limit) * 100}%` }}
+                />
+              </div>
+              {usageInfo.tier === 'free' && (
                 <button
-                  key={q}
-                  onClick={() => setInput(q)}
-                  className={`p-3 rounded-lg text-sm border text-left hover:border-amber-400 transition-colors ${
-                    dm ? 'bg-[#16213e] border-gray-700' : 'bg-white border-amber-200'
-                  }`}
-                >{q}</button>
-              ))}
-            </div>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 ${
-              msg.role === 'user'
-                ? 'bg-amber-600 text-white rounded-br-sm'
-                : dm ? 'bg-[#16213e] text-gray-100 rounded-bl-sm border border-gray-700' : 'bg-white text-gray-900 rounded-bl-sm border border-amber-200'
-            }`}>
-              {msg.role === 'assistant' ? (
-                <div className="prose prose-sm max-w-none prose-invert">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-              ) : (
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  onClick={() => router.push('/dashboard')}
+                  className="mt-2 text-amber-400 text-xs hover:underline"
+                >
+                  Upgrade to Pro
+                </button>
               )}
             </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className={`rounded-2xl px-4 py-3 ${dm ? 'bg-[#16213e] border border-gray-700' : 'bg-white border border-amber-200'}`}>
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </div>
-        )}
-        {error && (
-          <div className="flex justify-center">
-            <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-4 py-2 text-sm">
-              {error}
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          )}
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-[#334155] text-sm"
+          >
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
 
-      {/* Input */}
-      <div className={`border-t px-4 py-3 ${dm ? 'border-gray-700 bg-[#16213e]' : 'border-amber-200 bg-amber-50'}`}>
-        <form onSubmit={sendMessage} className="flex gap-2 max-w-4xl mx-auto">
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Ask a biblical question..."
-            disabled={loading}
-            className={`flex-1 rounded-xl px-4 py-3 text-sm border focus:outline-none focus:ring-2 focus:ring-amber-500 ${
-              dm ? 'bg-[#1a1a2e] border-gray-600 text-gray-100 placeholder-gray-500' : 'bg-white border-amber-300 text-gray-900'
-            }`}
-          />
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="h-14 border-b border-gray-700 flex items-center px-4 gap-3">
           <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="px-5 py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 hover:bg-[#334155] rounded-lg"
           >
-            Send
+            <Menu size={20} />
           </button>
-        </form>
+          <div className="flex items-center gap-2">
+            <BookOpen size={20} className="text-amber-400" />
+            <span className="font-semibold">Gamaliel AI Pastor</span>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          {messages.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center px-4 text-center">
+              <BookOpen size={48} className="text-amber-400 mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Welcome to Gamaliel AI Pastor</h2>
+              <p className="text-gray-400 mb-6 max-w-md">
+                Ask me anything about the Bible, theology, prayer, or Christian living.
+                I'm here to guide you with Scripture-based wisdom.
+              </p>
+              <div className="grid grid-cols-2 gap-3 max-w-2xl">
+                {[
+                  'What does the Bible say about anxiety?',
+                  'Explain the Sermon on the Mount',
+                  'How can I grow in my faith?',
+                  'What is the meaning of grace?',
+                ].map(q => (
+                  <button
+                    key={q}
+                    onClick={() => setInput(q)}
+                    className="p-4 rounded-lg bg-[#1e293b] hover:bg-[#334155] border border-gray-700 text-left text-sm transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex gap-4 ${
+                  msg.role === 'user' ? 'justify-end' : ''
+                }`}
+              >
+                {msg.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                    <BookOpen size={18} className="text-white" />
+                  </div>
+                )}
+                <div
+                  className={`px-4 py-3 rounded-2xl max-w-[80%] ${
+                    msg.role === 'user'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-[#1e293b]'
+                  }`}
+                >
+                  {msg.role === 'assistant' ? (
+                    <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p>{msg.content}</p>
+                  )}
+                </div>
+                {msg.role === 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                    <User size={18} className="text-white" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={18} className="text-white" />
+                </div>
+                <div className="px-4 py-3 rounded-2xl bg-[#1e293b]">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-gray-700 p-4">
+          <form onSubmit={sendMessage} className="max-w-3xl mx-auto">
+            <div className="flex gap-3 items-end">
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage(e as any);
+                  }
+                }}
+                placeholder="Ask a biblical question..."
+                rows={1}
+                className="flex-1 bg-[#1e293b] border border-gray-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-amber-500 resize-none max-h-40"
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="p-3 rounded-full bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send size={20} />
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
