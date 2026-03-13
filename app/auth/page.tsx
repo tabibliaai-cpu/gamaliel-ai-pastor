@@ -5,6 +5,9 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Eye, EyeOff, Sun, Moon, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
+// Production URL constant
+const PRODUCTION_URL = 'https://gamaliel-ai-pastor-production.up.railway.app';
+
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,7 +37,7 @@ function AuthPageContent() {
           password,
           options: {
             data: { name },
-            emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
+            emailRedirectTo: `${PRODUCTION_URL || window.location.origin}/auth/callback`,
           },
         });
         if (error) throw error;
@@ -58,7 +61,7 @@ function AuthPageContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
+          redirectTo: `${PRODUCTION_URL || window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
