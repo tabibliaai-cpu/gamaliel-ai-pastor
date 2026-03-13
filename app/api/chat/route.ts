@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
     const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     }
 
