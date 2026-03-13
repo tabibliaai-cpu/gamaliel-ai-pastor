@@ -80,8 +80,7 @@ export default function ChatPage() {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('
-');
+        const lines = chunk.split('\n');
         for (const line of lines) {
           if (line.startsWith('data: ') && line !== 'data: [DONE]') {
             try {
