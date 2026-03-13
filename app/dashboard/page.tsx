@@ -1,8 +1,8 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+import { LogOut, MessageSquare, Crown, User, Zap } from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const supabase = createClientComponentClient();
   const router = useRouter();
 
@@ -32,31 +33,66 @@ export default function DashboardPage() {
   }, []);
 
   async function loadData() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { router.push('/auth'); return; }
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        router.push('/auth');
+        return;
+      }
 
-    const { data: profileData } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-    setProfile(profileData);
+      const { data: profileData, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
 
-    const res = await fetch('/api/usage');
-    if (res.ok) setUsage(await res.json());
-    setLoading(false);
+      if (!profileData) {
+        const { data: newProfile } = await supabase
+          .from('users')
+          .upsert({
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            tier: 'free',
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        setProfile(newProfile);
+      } else {
+        setProfile(profileData);
+      }
+
+      try {
+        const res = await fetch('/api/usage');
+        if (res.ok) setUsage(await res.json());
+      } catch (e) {
+        console.error('Usage fetch error:', e);
+      }
+    } catch (e) {
+      console.error('loadData error:', e);
+      setError('Failed to load profile. Please refresh.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleUpgrade() {
     setUpgradeLoading(true);
-    const res = await fetch('/api/billing/create-checkout', { method: 'POST' });
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      setMessage('Error creating checkout session. Please try again.');
+    setMessage('');
+    try {
+      const res = await fetch('/api/billing/create-checkout', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setMessage('Error creating checkout. Please try again.');
+      }
+    } catch (e) {
+      setMessage('Network error. Please try again.');
+    } finally {
+      setUpgradeLoading(false);
     }
-    setUpgradeLoading(false);
   }
 
   async function signOut() {
@@ -66,150 +102,181 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
-        <div className="text-amber-400 text-xl">Loading...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Loading...</p>
+        </div>
       </div>
     );
   }
 
   const isPaid = profile?.tier === 'paid';
+  const usagePercent = usage ? Math.min((usage.used / usage.limit) * 100, 100) : 0;
+  const displayName = profile?.full_name || profile?.email?.split('@')[0] || 'User';
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] text-gray-100">
-      {/* Header */}
-      <header className="bg-[#16213e] border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">✝️</span>
-          <h1 className="font-bold text-lg text-amber-400">Gamaliel AI Pastor</h1>
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-black px-6 py-4 flex items-center justify-between sticky top-0 bg-white z-10">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">✝</span>
+          <span className="font-black text-sm uppercase tracking-widest">Gamaliel</span>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => router.push('/chat')}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm"
-          >Go to Chat</button>
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors"
+          >
+            <MessageSquare className="w-3 h-3" />
+            Chat
+          </button>
           <button
             onClick={signOut}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm"
-          >Sign Out</button>
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-black text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+          >
+            <LogOut className="w-3 h-3" />
+            Sign Out
+          </button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-        <h2 className="text-2xl font-bold text-amber-400">My Dashboard</h2>
-
-        {message && (
-          <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-4 py-3 text-sm">{message}</div>
-        )}
-
-        {/* Profile Card */}
-        <div className="bg-[#16213e] rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-semibold mb-4 text-amber-400">Profile</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Name</p>
-              <p className="text-sm font-medium mt-1">{profile?.full_name || 'Not set'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Email</p>
-              <p className="text-sm font-medium mt-1">{profile?.email}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Member Since</p>
-              <p className="text-sm font-medium mt-1">
-                {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '-'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Plan</p>
-              <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                isPaid ? 'bg-amber-500 text-black' : 'bg-gray-600 text-gray-200'
-              }`}>
-                {isPaid ? 'Paid' : 'Free'}
-              </span>
-            </div>
-          </div>
+      <main className="max-w-2xl mx-auto px-6 py-10 space-y-10">
+        <div>
+          <h1 className="text-2xl font-black uppercase tracking-tight">Dashboard</h1>
+          <p className="text-[11px] text-gray-500 uppercase tracking-widest mt-1">Manage your account</p>
         </div>
 
-        {/* Usage Card */}
-        {usage && (
-          <div className="bg-[#16213e] rounded-xl p-6 border border-gray-700">
-            <h3 className="text-lg font-semibold mb-4 text-amber-400">Today&apos;s Usage</h3>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <div className="flex justify-between text-sm mb-2">
-                  <span>{usage.used} messages used</span>
-                  <span className="text-gray-400">{usage.limit} limit</span>
-                </div>
-                <div className="bg-gray-700 rounded-full h-3">
-                  <div
-                    className={`h-3 rounded-full transition-all ${
-                      usage.used >= usage.limit ? 'bg-red-500' : 'bg-amber-500'
-                    }`}
-                    style={{ width: `${Math.min((usage.used / usage.limit) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-              <span className="text-2xl font-bold text-amber-400">
-                {Math.round((usage.used / usage.limit) * 100)}%
-              </span>
-            </div>
-            {usage.used >= usage.limit && (
-              <p className="text-red-400 text-sm mt-3">
-                Daily limit reached. {!isPaid && 'Upgrade to get more messages!'}
-              </p>
-            )}
+        {error && (
+          <div className="border border-red-500 bg-red-50 px-4 py-3 text-[11px] font-bold uppercase text-red-700">
+            {error}
           </div>
         )}
 
-        {/* Plans */}
-        <div id="upgrade" className="bg-[#16213e] rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-semibold mb-6 text-amber-400">Plans</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Free Plan */}
-            <div className={`rounded-xl border-2 p-5 ${
-              !isPaid ? 'border-amber-500 bg-[#0f3460]' : 'border-gray-600'
-            }`}>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-lg">Free</h4>
-                {!isPaid && <span className="bg-amber-500 text-black text-xs px-2 py-1 rounded-full font-semibold">Current</span>}
+        {message && (
+          <div className="border border-black bg-gray-50 px-4 py-3 text-[11px] font-bold uppercase">
+            {message}
+          </div>
+        )}
+
+        <section className="space-y-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Profile</p>
+          <div className="border border-black p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-black flex items-center justify-center flex-shrink-0">
+                <User className="w-5 h-5 text-white" />
               </div>
-              <p className="text-3xl font-bold mb-1">$0<span className="text-sm text-gray-400">/mo</span></p>
-              <ul className="text-sm text-gray-300 space-y-2 mt-4">
-                <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> 10 messages/day</li>
-                <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> All languages</li>
-                <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Bible Q&A</li>
-                <li className="flex items-center gap-2"><span className="text-gray-500">✕</span> Priority support</li>
+              <div>
+                <p className="font-bold text-sm uppercase">{displayName}</p>
+                <p className="text-[11px] text-gray-500">{profile?.email}</p>
+              </div>
+              <div className="ml-auto">
+                <span className={`text-[9px] font-black uppercase px-2 py-1 ${isPaid ? 'bg-black text-white' : 'border border-black'}`}>
+                  {isPaid ? 'Pro' : 'Free'}
+                </span>
+              </div>
+            </div>
+            <div className="border-t border-gray-100 pt-4 grid grid-cols-2 gap-4 text-[11px]">
+              <div>
+                <p className="text-gray-400 uppercase font-bold">Member Since</p>
+                <p className="font-bold mt-0.5">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 uppercase font-bold">Plan</p>
+                <p className="font-bold mt-0.5">{isPaid ? 'Pro — ₹499/mo' : 'Free'}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {usage && (
+          <section className="space-y-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Today&apos;s Usage</p>
+            <div className="border border-black p-6 space-y-3">
+              <div className="flex justify-between items-end">
+                <div>
+                  <span className="text-3xl font-black">{usage.used}</span>
+                  <span className="text-gray-400 text-sm font-bold"> / {usage.limit}</span>
+                </div>
+                <span className="text-[10px] font-bold uppercase text-gray-500">messages today</span>
+              </div>
+              <div className="h-1.5 bg-gray-100 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${usagePercent >= 100 ? 'bg-red-500' : usagePercent >= 80 ? 'bg-yellow-500' : 'bg-black'}`}
+                  style={{ width: `${usagePercent}%` }}
+                />
+              </div>
+              {usage.used >= usage.limit && (
+                <p className="text-[11px] font-bold text-red-600 uppercase">
+                  Daily limit reached.{!isPaid && ' Upgrade to Pro for more messages.'}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Select Plan</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className={`border border-black p-5 space-y-4 ${!isPaid ? 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'opacity-60'}`}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-black text-base uppercase">Free</h3>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-widest mt-0.5">Basic Access</p>
+                </div>
+                {!isPaid && <span className="bg-black text-white px-2 py-0.5 text-[9px] font-black uppercase">Current</span>}
+              </div>
+              <p className="text-2xl font-black">₹0<span className="text-xs font-normal text-gray-400">/mo</span></p>
+              <ul className="space-y-1.5">
+                {['10 messages/day', 'Gemini model', 'All Indian languages', 'Basic theology Q&A'].map(f => (
+                  <li key={f} className="text-[11px] font-bold uppercase flex items-center gap-2">
+                    <span className="w-1 h-1 bg-black rounded-full inline-block flex-shrink-0" />{f}
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Paid Plan */}
-            <div className={`rounded-xl border-2 p-5 ${
-              isPaid ? 'border-amber-500 bg-[#0f3460]' : 'border-gray-600'
-            }`}>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-lg">Pro</h4>
-                {isPaid && <span className="bg-amber-500 text-black text-xs px-2 py-1 rounded-full font-semibold">Current</span>}
+            <div className={`border-2 border-black p-5 space-y-4 ${isPaid ? 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : ''}`}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-black text-base uppercase">Pro</h3>
+                    <Crown className="w-4 h-4" />
+                  </div>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-widest mt-0.5">Full Access</p>
+                </div>
+                {isPaid && <span className="bg-black text-white px-2 py-0.5 text-[9px] font-black uppercase">Current</span>}
               </div>
-              <p className="text-3xl font-bold mb-1">$9<span className="text-sm text-gray-400">/mo</span></p>
-              <ul className="text-sm text-gray-300 space-y-2 mt-4">
-                <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> 500 messages/day</li>
-                <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> All languages</li>
-                <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Bible Q&A</li>
-                <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Priority support</li>
+              <p className="text-2xl font-black">₹499<span className="text-xs font-normal text-gray-400">/mo</span></p>
+              <ul className="space-y-1.5">
+                {['500 messages/day', 'Gemini model (fast)', 'Deep Theology mode', 'All Indian languages', 'Priority access'].map(f => (
+                  <li key={f} className="text-[11px] font-bold uppercase flex items-center gap-2">
+                    <span className="w-1 h-1 bg-black rounded-full inline-block flex-shrink-0" />{f}
+                  </li>
+                ))}
               </ul>
               {!isPaid && (
                 <button
                   onClick={handleUpgrade}
                   disabled={upgradeLoading}
-                  className="mt-5 w-full py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                  className="w-full py-2.5 bg-black text-white font-black uppercase text-[11px] tracking-widest hover:bg-gray-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                 >
-                  {upgradeLoading ? 'Redirecting...' : 'Upgrade to Pro'}
+                  <Zap className="w-3 h-3" />
+                  {upgradeLoading ? 'Redirecting...' : 'Upgrade to Pro — ₹499/mo'}
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </section>
       </main>
+
+      <div className="sm:hidden fixed bottom-6 right-6 z-20">
+        <button
+          onClick={() => router.push('/chat')}
+          className="bg-black text-white p-4 rounded-full shadow-2xl"
+        >
+          <MessageSquare className="w-6 h-6" />
+        </button>
+      </div>
     </div>
   );
 }
