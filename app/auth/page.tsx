@@ -57,7 +57,9 @@ function AuthPageContent() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
+        options: 
+        redirectTo: `${window.location.origin}/auth/callback`,
+      
         },
       });
       if (error) throw error;
