@@ -125,23 +125,22 @@ export default function ChatPage() {
             onClick={startNewConversation}
             className="flex items-center gap-3 px-3 py-3 w-full rounded-lg hover:bg-[#2f2f2f] transition-all border border-white/20 mb-2 group"
           >
-            <Plus size={16} className="text-white group-hover:scale-110 transition-transform" />
+            <Plus size={16} className="text-white" />
             <span className="text-sm font-medium">New Chat</span>
           </button>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar">
-            <div className="text-[10px] font-bold text-[#676767] uppercase px-3 py-2">Previous Chats</div>
+            <div className="text-[10px] font-bold text-[#676767] uppercase px-3 py-2">History</div>
             {conversations.map(conv => (
               <button
                 key={conv.id}
                 onClick={() => loadConversation(conv.id)}
-                className={`w-full text-left px-3 py-3 rounded-lg text-sm truncate transition-all group relative flex items-center gap-3 ${
+                className={`w-full text-left px-3 py-3 rounded-lg text-sm truncate transition-all ${
                   currentConvId === conv.id
                     ? 'bg-[#2f2f2f] text-white'
                     : 'text-[#ececf1] hover:bg-[#2f2f2f]'
                 }`}
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 opacity-50"></div>
                 {conv.title}
               </button>
             ))}
@@ -154,7 +153,7 @@ export default function ChatPage() {
             <div className="px-3 py-3 rounded-lg bg-[#2f2f2f]/50 mb-2">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">{usageInfo.tier} Plan</span>
-                <span className="text-[10px] text-[#676767] font-medium">{usageInfo.used} / {usageInfo.limit}</span>
+                <span className="text-[10px] text-[#676767]">{usageInfo.used} / {usageInfo.limit}</span>
               </div>
               <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                 <div 
@@ -165,9 +164,9 @@ export default function ChatPage() {
               {usageInfo.tier === 'free' && (
                 <button 
                   onClick={() => router.push('/dashboard')}
-                  className="w-full mt-3 text-[11px] font-semibold text-white bg-amber-600 hover:bg-amber-500 py-1.5 rounded-md transition-colors"
+                  className="w-full mt-3 text-[11px] font-semibold text-white bg-amber-600 hover:bg-amber-500 py-1.5 rounded-md"
                 >
-                  Upgrade to Pro
+                  Upgrade
                 </button>
               )}
             </div>
@@ -184,33 +183,21 @@ export default function ChatPage() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#0b0d0e] relative h-full">
-        {/* Top Header for Mobile/Sidebar Toggle */}
-        <div className="h-12 flex items-center px-4 border-b border-white/5 bg-[#0b0d0e]/80 backdrop-blur-md sticky top-0 z-40">
-           {!sidebarOpen && (
-             <button
-               onClick={() => setSidebarOpen(true)}
-               className="p-1.5 hover:bg-[#2f2f2f] rounded-md mr-2"
-             >
-               <ChevronRight size={18} />
-             </button>
-           )}
-           {sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1.5 hover:bg-[#2f2f2f] rounded-md mr-2"
-              >
-                <ChevronLeft size={18} />
-              </button>
-           )}
+        {/* Top Header */}
+        <div className="h-12 flex items-center px-4 border-b border-white/5 sticky top-0 z-40 bg-[#0b0d0e]/80 backdrop-blur-md">
+           <button
+             onClick={() => setSidebarOpen(!sidebarOpen)}
+             className="p-1.5 hover:bg-[#2f2f2f] rounded-md mr-2 text-[#676767]"
+           >
+             <Menu size={18} />
+           </button>
            <div className="flex items-center gap-2">
-             <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center">
-                <BookOpen size={14} className="text-white" />
-             </div>
+             <BookOpen size={16} className="text-amber-500" />
              <span className="text-sm font-semibold tracking-tight">Gamaliel AI Pastor</span>
            </div>
         </div>
 
-        {/* Messages Container */}
+        {/* Messages */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth custom-scrollbar">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center px-4 max-w-3xl mx-auto py-12">
@@ -234,7 +221,7 @@ export default function ChatPage() {
                     onClick={() => setInput(q)}
                     className="p-4 rounded-xl bg-[#171717] hover:bg-[#2f2f2f] border border-white/5 text-left text-sm transition-all hover:border-white/10 group active:scale-[0.98]"
                   >
-                    <div className="font-medium mb-1 text-white group-hover:text-amber-400 transition-colors">{q}</div>
+                    <div className="font-medium mb-1 text-white group-hover:text-amber-400">{q}</div>
                     <div className="text-[12px] text-[#676767]">Click to ask</div>
                   </button>
                 ))}
