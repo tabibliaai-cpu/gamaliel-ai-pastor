@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Authenticate user
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
         .limit(10);
+
       if (history) {
         historyMessages = history.map((m: any) => ({
           role: m.role as 'user' | 'assistant',
@@ -74,6 +76,7 @@ export async function POST(req: NextRequest) {
         .insert({ user_id: user.id, title: message.slice(0, 100) })
         .select('id')
         .single();
+
       if (convErr || !conv) throw new Error('CONVERSATION_CREATE_FAILED');
       convId = conv.id;
     }
