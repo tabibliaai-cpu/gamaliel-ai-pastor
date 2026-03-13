@@ -15,12 +15,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 });
     }
 
-    // 1. Authenticate user
-    const cookieStore = cookies();
+        // 1. Authenticate user
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
     }
 
