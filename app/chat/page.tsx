@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
-import { Send, Menu, X, Plus, LogOut, LayoutDashboard, Book, Sparkles, Sun, Moon, Loader2 } from 'lucide-react';
+import { Send, Menu, Plus, LogOut, LayoutDashboard, Book, Sparkles, Sun, Moon, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 interface Message {
@@ -131,11 +131,9 @@ export default function ChatPage() {
         <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
           <h1 className="text-lg font-semibold tracking-tight">Gamaliel</h1>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-md">
-            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
           <button 
             onClick={newChat}
             className="w-full flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-[#222] transition-all shadow-sm group"
