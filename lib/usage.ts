@@ -1,72 +1,56 @@
 import { supabaseAdmin } from './supabaseAdmin';
 
+const PLAN_LIMITS: Record<string, number> = {
+  free: 10,
+  paid: 100,
+};
+
 export async function getUserPlanAndUsage(userId: string) {
-  const { data: user, error: userError } = await supabaseAdmin
+  // Get user from public.users (created by trigger on auth.users insert)
+  let { data: user, error: userError } = await supabaseAdmin
     .from('users')
-    .select('id, plan')
+    .select('id, tier')
     .eq('id', userId)
     .single();
 
-  if (userError || !user) throw new Error('USER_NOT_FOUND');
-
-  // Get or create user plan
-  let { data: plan, error: planError } = await supabaseAdmin
-    .from('plans')
-    .select('id, daily_message_limit')
-    .eq('id', user.plan)
-    .single();
-
-  if (planError || !plan) {
-    // If no plan found, create a default free plan entry for this user
-    const { data: newPlan, error: createError } = await supabaseAdmin
-      .from('user_plans')
-      .insert({
-        user_id: userId,
-        plan_type: 'free',
-        daily_message_limit: 10,
-        messages_used: 0
-      })
-      .select('*')
+  // Auto-create user if not found (fallback)
+  if (userError || !user) {
+    const { data: authData } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const email = authData?.user?.email ?? '';
+    const { data: created } = await supabaseAdmin
+      .from('users')
+      .insert({ id: userId, email, tier: 'free' })
+      .select('id, tier')
       .single();
-
-    if (createError || !newPlan) throw new Error('FAILED_TO_CREATE_PLAN');
-    
-    return {
-      planId: newPlan.id as string,
-      dailyLimit: 10,
-      usageRowId: newPlan.id,
-      messagesUsed: 0,
-      today: new Date().toISOString().slice(0, 10)
-    };
+    user = created ?? { id: userId, tier: 'free' };
   }
 
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD in UTC
+  const tier = (user as any).tier ?? 'free';
+  const dailyLimit = PLAN_LIMITS[tier] ?? 10;
+  const today = new Date().toISOString().slice(0, 10);
 
-  // Get or create usage row for today
+  // Get or create today's usage row
   let { data: usageRow } = await supabaseAdmin
-    .from('usage_daily')
+    .from('usage_tracking')
     .select('id, messages_used')
     .eq('user_id', userId)
     .eq('date', today)
     .maybeSingle();
 
   if (!usageRow) {
-    // Create new usage row for today
-    const { data: newUsageRow, error: usageError } = await supabaseAdmin
-      .from('usage_daily')
+    const { data: newRow } = await supabaseAdmin
+      .from('usage_tracking')
       .insert({ user_id: userId, date: today, messages_used: 0 })
       .select('id, messages_used')
       .single();
-    
-    if (usageError || !newUsageRow) throw new Error('FAILED_TO_CREATE_USAGE');
-    usageRow = newUsageRow;
+    usageRow = newRow;
   }
 
   return {
-    planId: plan.id as string,
-    dailyLimit: plan.daily_message_limit as number,
-    usageRowId: usageRow.id ?? null,
-    messagesUsed: usageRow?.messages_used ?? 0,
+    planId: tier as string,
+    dailyLimit,
+    usageRowId: (usageRow as any)?.id ?? null,
+    messagesUsed: (usageRow as any)?.messages_used ?? 0,
     today,
   };
 }
@@ -74,27 +58,31 @@ export async function getUserPlanAndUsage(userId: string) {
 export async function incrementUsage(
   userId: string,
   today: string,
-  usageRowId: number | null
+  usageRowId: string | null
 ) {
-  if (usageRowId !== null) {
-    // Increment existing row using Postgres raw RPC to avoid race conditions
-    const { error } = await supabaseAdmin.rpc('increment_message_count', {
-      row_id: usageRowId,
-    });
-    if (error) console.error('Failed to increment usage:', error);
+  if (usageRowId) {
+    // Read current count then increment
+    const { data: current } = await supabaseAdmin
+      .from('usage_tracking')
+      .select('messages_used')
+      .eq('id', usageRowId)
+      .single();
+    const newCount = ((current as any)?.messages_used ?? 0) + 1;
+    await supabaseAdmin
+      .from('usage_tracking')
+      .update({ messages_used: newCount })
+      .eq('id', usageRowId);
   } else {
-    // Fallback: insert new row
-    const { error } = await supabaseAdmin
-      .from('usage_daily')
+    await supabaseAdmin
+      .from('usage_tracking')
       .insert({ user_id: userId, date: today, messages_used: 1 });
-    if (error) console.error('Failed to create usage row:', error);
   }
 }
 
 export async function checkUsageLimit(userId: string) {
   const usage = await getUserPlanAndUsage(userId);
-  if (usage.messagesUsed >= usage.dailyLimit) {
-    return { allowed: false, usage };
-  }
-  return { allowed: true, usage };
+  return {
+    allowed: usage.messagesUsed < usage.dailyLimit,
+    usage,
+  };
 }
