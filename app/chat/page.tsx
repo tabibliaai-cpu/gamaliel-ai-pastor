@@ -130,8 +130,6 @@ export default function ChatPage() {
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-gray-50 dark:bg-[#111111] border-r border-gray-200 dark:border-gray-800 flex flex-col transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
           <h1 className="text-lg font-semibold tracking-tight">Gamaliel</h1>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-md">
-          </button>
         </div>
 
           <button 
