@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
-import { Send, Menu, X, Plus, LogOut, LayoutDashboard, Sparkles, Sun, Moon, Loader2 } from 'lucide-react';
+import { Send, Menu, X, Plus, LogOut, LayoutDashboard, Book, Sparkles, Sun, Moon, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 interface Message {
