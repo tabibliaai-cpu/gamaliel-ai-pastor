@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
@@ -10,18 +11,12 @@ interface Message {
   content: string;
 }
 
-interface UsageInfo {
-  used: number;
-  limit: number;
-  tier: string;
-}
-
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [usageInfo, setUsageInfo] = useState<{used: number; limit: number; tier: string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient();
   const router = useRouter();
@@ -38,6 +33,7 @@ export default function ChatPage() {
 
   async function handleSend() {
     if (!input.trim() || loading) return;
+
     const userMessage = input.trim();
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
@@ -49,7 +45,9 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage }),
       });
+
       const data = await res.json();
+
       if (data.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error}` }]);
       } else {
@@ -63,157 +61,177 @@ export default function ChatPage() {
     }
   }
 
-  async function handleSignOut() {
+  async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/login');
   }
 
+  function newChat() {
+    setMessages([]);
+    setInput('');
+  }
+
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 shadow-2xl transform ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0 transition-transform duration-300 ease-in-out border-r border-slate-200 dark:border-slate-700`}>
-        <div className="flex flex-col h-full">
-          {/* Sidebar Header */}
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Book className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  Gamaliel AI
-                </h1>
-              </div>
-              <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <button onClick={() => { setMessages([]); }} className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              <Plus className="w-5 h-5" />
-              <span>New Chat</span>
+      <div className={`${
+        sidebarOpen ? 'w-64' : 'w-0'
+      } transition-all duration-300 bg-gray-900 text-white flex flex-col overflow-hidden`}>
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <Book className="w-6 h-6" />
+              Gamaliel AI
+            </h1>
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
+              <X className="w-5 h-5" />
             </button>
           </div>
+          <button
+            onClick={newChat}
+            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition"
+          >
+            <Plus className="w-4 h-4" />
+            New Chat
+          </button>
+        </div>
 
-          {/* Usage Info */}
+        <div className="flex-1 overflow-y-auto p-4">
           {usageInfo && (
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Daily Usage</span>
-                  <span className="text-xs font-semibold px-2 py-1 bg-indigo-600 text-white rounded-full">{usageInfo.tier}</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600 dark:text-slate-400">{usageInfo.used} / {usageInfo.limit}</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{Math.round((usageInfo.used / usageInfo.limit) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 h-full rounded-full transition-all duration-500" style={{ width: `${(usageInfo.used / usageInfo.limit) * 100}%` }} />
-                  </div>
-                </div>
-              </div>
+            <div className="bg-gray-800 p-3 rounded-lg mb-4">
+              <p className="text-sm text-gray-400">Usage Today</p>
+              <p className="text-lg font-semibold">{usageInfo.used} / {usageInfo.limit}</p>
+              <p className="text-xs text-gray-500 mt-1 capitalize">{usageInfo.tier} Plan</p>
             </div>
           )}
+        </div>
 
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Sidebar Footer */}
-          <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-            <button onClick={handleSignOut} className="w-full flex items-center justify-center space-x-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 px-4 py-3 rounded-xl font-medium transition-all">
-              <LogOut className="w-5 h-5" />
-              <span>Sign Out</span>
-            </button>
-            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-4">Biblical guidance powered by AI</p>
-          </div>
+        <div className="p-4 border-t border-gray-700">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-gray-800 rounded-lg transition"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:ml-72">
-        {/* Top Bar */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+          >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <h2 className="font-semibold text-slate-800 dark:text-slate-200">Gamaliel AI Pastor</h2>
-          </div>
-          <div className="w-10" /> {/* Spacer for centering */}
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Gamaliel AI Pastor</h2>
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="max-w-3xl mx-auto text-center py-12">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 mb-6">
-                <Book className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-3">Peace be with you</h2>
-              <p className="text-lg text-slate-600 dark:text-slate-300 mb-8">I am Gamaliel, your AI Biblical companion. How may I serve your spiritual growth today?</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
-                {['What does the Bible say about anxiety?', 'Explain the Sermon on the Mount', 'How can I grow in my faith?', 'What is the meaning of grace?'].map((q) => (
-                  <button key={q} onClick={() => setInput(q)} className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 p-4 rounded-xl text-left border border-slate-200 dark:border-slate-700 transition-all hover:shadow-lg hover:-translate-y-0.5 group">
-                    <p className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{q}</p>
-                  </button>
-                ))}
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center max-w-md px-4">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to Gamaliel AI</h3>
+                <p className="text-gray-600 dark:text-gray-400">Your AI-powered Biblical guidance assistant. Ask me anything about the Bible, theology, or spiritual matters.</p>
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-3xl mx-auto px-4 py-6">
               {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-5 py-3 ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                      : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-md border border-slate-200 dark:border-slate-700'
-                  }`}>
+                <div
+                  key={idx}
+                  className={`mb-6 flex gap-4 ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {msg.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                      <Book className="w-5 h-5 text-white" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
                     {msg.role === 'assistant' ? (
-                      <div className="prose dark:prose-invert prose-sm max-w-none">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
+                      <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">
+                        {msg.content}
+                      </ReactMarkdown>
                     ) : (
-                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
                     )}
                   </div>
+                  {msg.role === 'user' && (
+                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-semibold text-sm">You</span>
+                    </div>
+                  )}
                 </div>
               ))}
+              {loading && (
+                <div className="flex gap-4 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Book className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
           )}
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-4 py-4">
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
           <div className="max-w-3xl mx-auto">
-            <div className="relative flex items-center bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-indigo-500 dark:focus-within:ring-indigo-400 transition-all">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder="Ask Gamaliel a question..."
-                disabled={loading}
-                className="flex-1 bg-transparent px-6 py-4 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none disabled:opacity-50"
-              />
+            <div className="flex gap-2 items-end">
+              <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-2xl px-4 py-2">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Ask Gamaliel a question..."
+                  disabled={loading}
+                  className="w-full bg-transparent border-none outline-none resize-none text-gray-900 dark:text-white placeholder-gray-500 max-h-32"
+                  rows={1}
+                  style={{ minHeight: '24px' }}
+                />
+              </div>
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || loading}
-                className="mr-2 p-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
+                className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-xl transition flex-shrink-0 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-3">Gamaliel AI Pastor provides Biblical guidance but is not a substitute for pastoral care or Scripture study.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+              Gamaliel AI Pastor provides Biblical guidance but is not a substitute for pastoral care.
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-40 lg:hidden" />
-      )}
     </div>
   );
 }
