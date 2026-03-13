@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
-import { BookOpen, Send, Plus, Menu, LogOut, User } from 'lucide-react';
+import { BookOpen, Send, Plus, Menu, LogOut, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -79,6 +79,7 @@ export default function ChatPage() {
 
     const userMsg: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMsg]);
+    const currentInput = input;
     setInput('');
     setLoading(true);
 
@@ -86,11 +87,9 @@ export default function ChatPage() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, conversationId: currentConvId }),
+        body: JSON.stringify({ message: currentInput, conversationId: currentConvId }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         alert(data.error || 'An error occurred');
         setMessages(prev => prev.slice(0, -1));
@@ -116,54 +115,57 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-[#0f172a] text-white">
+    <div className="flex h-screen bg-[#0b0d0e] text-[#ececf1] overflow-hidden font-sans">
       {/* Sidebar */}
       <div className={`${
-        sidebarOpen ? 'w-64' : 'w-0'
-      } bg-[#1e293b] transition-all duration-300 flex flex-col border-r border-gray-700 overflow-hidden`}>
-        <div className="p-4 border-b border-gray-700">
+        sidebarOpen ? 'w-[260px]' : 'w-0'
+      } bg-[#171717] transition-all duration-300 flex flex-col h-full border-r border-white/10 overflow-hidden relative z-50`}>
+        <div className="flex-1 flex flex-col p-2 space-y-1">
           <button
             onClick={startNewConversation}
-            className="w-full flex items-center gap-2 px-4 py-3 rounded-lg bg-[#334155] hover:bg-[#475569] transition-colors"
+            className="flex items-center gap-3 px-3 py-3 w-full rounded-lg hover:bg-[#2f2f2f] transition-all border border-white/20 mb-2 group"
           >
-            <Plus size={18} />
-            <span>New Chat</span>
+            <Plus size={16} className="text-white group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-medium">New Chat</span>
           </button>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="text-[10px] font-bold text-[#676767] uppercase px-3 py-2">Previous Chats</div>
+            {conversations.map(conv => (
+              <button
+                key={conv.id}
+                onClick={() => loadConversation(conv.id)}
+                className={`w-full text-left px-3 py-3 rounded-lg text-sm truncate transition-all group relative flex items-center gap-3 ${
+                  currentConvId === conv.id
+                    ? 'bg-[#2f2f2f] text-white'
+                    : 'text-[#ececf1] hover:bg-[#2f2f2f]'
+                }`}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 opacity-50"></div>
+                {conv.title}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {conversations.map(conv => (
-            <button
-              key={conv.id}
-              onClick={() => loadConversation(conv.id)}
-              className={`w-full text-left px-4 py-3 rounded-lg text-sm truncate transition-colors ${
-                currentConvId === conv.id
-                  ? 'bg-[#334155]'
-                  : 'hover:bg-[#334155]'
-              }`}
-            >
-              {conv.title}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-4 border-t border-gray-700 space-y-2">
+        {/* Sidebar Footer */}
+        <div className="p-2 border-t border-white/10 space-y-1">
           {usageInfo && (
-            <div className="text-xs text-gray-400">
-              <div className="flex justify-between mb-1">
-                <span>{usageInfo.tier}</span>
-                <span>{usageInfo.used}/{usageInfo.limit}</span>
+            <div className="px-3 py-3 rounded-lg bg-[#2f2f2f]/50 mb-2">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">{usageInfo.tier} Plan</span>
+                <span className="text-[10px] text-[#676767] font-medium">{usageInfo.used} / {usageInfo.limit}</span>
               </div>
-              <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-500"
+              <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-amber-500 transition-all duration-500"
                   style={{ width: `${(usageInfo.used / usageInfo.limit) * 100}%` }}
                 />
               </div>
               {usageInfo.tier === 'free' && (
-                <button
+                <button 
                   onClick={() => router.push('/dashboard')}
-                  className="mt-2 text-amber-400 text-xs hover:underline"
+                  className="w-full mt-3 text-[11px] font-semibold text-white bg-amber-600 hover:bg-amber-500 py-1.5 rounded-md transition-colors"
                 >
                   Upgrade to Pro
                 </button>
@@ -172,7 +174,7 @@ export default function ChatPage() {
           )}
           <button
             onClick={signOut}
-            className="w-full flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-[#334155] text-sm"
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#2f2f2f] text-sm text-[#ececf1] transition-all"
           >
             <LogOut size={16} />
             <span>Sign Out</span>
@@ -180,33 +182,47 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="h-14 border-b border-gray-700 flex items-center px-4 gap-3">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-[#334155] rounded-lg"
-          >
-            <Menu size={20} />
-          </button>
-          <div className="flex items-center gap-2">
-            <BookOpen size={20} className="text-amber-400" />
-            <span className="font-semibold">Gamaliel AI Pastor</span>
-          </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0b0d0e] relative h-full">
+        {/* Top Header for Mobile/Sidebar Toggle */}
+        <div className="h-12 flex items-center px-4 border-b border-white/5 bg-[#0b0d0e]/80 backdrop-blur-md sticky top-0 z-40">
+           {!sidebarOpen && (
+             <button
+               onClick={() => setSidebarOpen(true)}
+               className="p-1.5 hover:bg-[#2f2f2f] rounded-md mr-2"
+             >
+               <ChevronRight size={18} />
+             </button>
+           )}
+           {sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-1.5 hover:bg-[#2f2f2f] rounded-md mr-2"
+              >
+                <ChevronLeft size={18} />
+              </button>
+           )}
+           <div className="flex items-center gap-2">
+             <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center">
+                <BookOpen size={14} className="text-white" />
+             </div>
+             <span className="text-sm font-semibold tracking-tight">Gamaliel AI Pastor</span>
+           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
-          {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center px-4 text-center">
-              <BookOpen size={48} className="text-amber-400 mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Welcome to Gamaliel AI Pastor</h2>
-              <p className="text-gray-400 mb-6 max-w-md">
-                Ask me anything about the Bible, theology, prayer, or Christian living.
-                I'm here to guide you with Scripture-based wisdom.
+        {/* Messages Container */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth custom-scrollbar">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center px-4 max-w-3xl mx-auto py-12">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500 flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20">
+                <BookOpen size={32} className="text-white" />
+              </div>
+              <h1 className="text-3xl font-bold mb-3 tracking-tight text-center">Peace be with you.</h1>
+              <p className="text-[#9b9b9b] text-center mb-10 max-w-md leading-relaxed">
+                I am Gamaliel, your AI Biblical companion. How may I serve your spiritual growth today?
               </p>
-              <div className="grid grid-cols-2 gap-3 max-w-2xl">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
                 {[
                   'What does the Bible say about anxiety?',
                   'Explain the Sermon on the Mount',
@@ -216,98 +232,129 @@ export default function ChatPage() {
                   <button
                     key={q}
                     onClick={() => setInput(q)}
-                    className="p-4 rounded-lg bg-[#1e293b] hover:bg-[#334155] border border-gray-700 text-left text-sm transition-colors"
+                    className="p-4 rounded-xl bg-[#171717] hover:bg-[#2f2f2f] border border-white/5 text-left text-sm transition-all hover:border-white/10 group active:scale-[0.98]"
                   >
-                    {q}
+                    <div className="font-medium mb-1 text-white group-hover:text-amber-400 transition-colors">{q}</div>
+                    <div className="text-[12px] text-[#676767]">Click to ask</div>
                   </button>
                 ))}
               </div>
             </div>
-          )}
-
-          <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex gap-4 ${
-                  msg.role === 'user' ? 'justify-end' : ''
-                }`}
-              >
-                {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                    <BookOpen size={18} className="text-white" />
+          ) : (
+            <div className="max-w-3xl mx-auto w-full px-4 pt-10 pb-32 space-y-10">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex gap-5 group animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                  msg.role === 'user' ? 'flex-row-reverse' : ''
+                }`}>
+                  <div className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 shadow-sm ${
+                    msg.role === 'assistant' 
+                      ? 'bg-amber-500 text-white' 
+                      : 'bg-[#2f2f2f] text-white border border-white/10'
+                  }`}>
+                    {msg.role === 'assistant' ? <BookOpen size={18} /> : <User size={18} />}
                   </div>
-                )}
-                <div
-                  className={`px-4 py-3 rounded-2xl max-w-[80%] ${
-                    msg.role === 'user'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-[#1e293b]'
-                  }`}
-                >
-                  {msg.role === 'assistant' ? (
-                    <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  
+                  <div className={`flex flex-col gap-1 max-w-[85%] ${msg.role === 'user' ? 'items-end' : ''}`}>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-[#676767] px-1 mb-1">
+                      {msg.role === 'assistant' ? 'Gamaliel' : 'You'}
                     </div>
-                  ) : (
-                    <p>{msg.content}</p>
-                  )}
-                </div>
-                {msg.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
-                    <User size={18} className="text-white" />
+                    <div className={`rounded-2xl px-5 py-4 text-[15px] leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-[#2f2f2f] text-white rounded-tr-none'
+                        : 'bg-transparent text-[#ececf1] rounded-tl-none'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-invert max-w-none prose-p:my-3 prose-headings:my-4 prose-blockquote:border-amber-500 prose-blockquote:bg-amber-500/5 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-a:text-amber-400 prose-strong:text-white">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              ))}
+              
+              {loading && (
+                <div className="flex gap-5 animate-pulse">
+                  <div className="w-9 h-9 rounded-md bg-amber-500/50 flex items-center justify-center flex-shrink-0">
+                    <BookOpen size={18} className="text-white/50" />
+                  </div>
+                  <div className="flex flex-col gap-2 w-full max-w-[85%]">
+                    <div className="w-24 h-2 bg-white/5 rounded-full mb-1"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-white/5 rounded-lg w-full"></div>
+                      <div className="h-4 bg-white/5 rounded-lg w-3/4"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
 
-            {loading && (
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                  <BookOpen size={18} className="text-white" />
-                </div>
-                <div className="px-4 py-3 rounded-2xl bg-[#1e293b]">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
+        {/* Input Area */}
+        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#0b0d0e] via-[#0b0d0e] to-transparent pt-10 pb-6">
+          <div className="max-w-3xl mx-auto px-4">
+            <form onSubmit={sendMessage} className="relative group">
+              <div className="relative flex items-end w-full bg-[#171717] border border-white/10 rounded-[26px] overflow-hidden focus-within:border-white/20 transition-all shadow-2xl">
+                <textarea
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage(e as any);
+                    }
+                  }}
+                  placeholder="Ask Gamaliel a question..."
+                  rows={1}
+                  className="flex-1 bg-transparent text-white px-5 py-4 focus:outline-none resize-none max-h-52 text-[15px] custom-scrollbar"
+                  disabled={loading}
+                />
+                <div className="p-2 pr-3">
+                  <button
+                    type="submit"
+                    disabled={loading || !input.trim()}
+                    className="p-2.5 rounded-2xl bg-white text-[#0b0d0e] hover:bg-[#ececf1] disabled:bg-[#2f2f2f] disabled:text-[#676767] transition-all active:scale-95 shadow-lg shadow-white/5"
+                  >
+                    <Send size={18} fill="currentColor" />
+                  </button>
                 </div>
               </div>
-            )}
-            <div ref={messagesEndRef} />
+              <p className="text-[10px] text-center text-[#676767] mt-3">
+                Gamaliel AI Pastor provides Biblical guidance but is not a substitute for pastoral care or Scripture study.
+              </p>
+            </form>
           </div>
         </div>
-
-        {/* Input */}
-        <div className="border-t border-gray-700 p-4">
-          <form onSubmit={sendMessage} className="max-w-3xl mx-auto">
-            <div className="flex gap-3 items-end">
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage(e as any);
-                  }
-                }}
-                placeholder="Ask a biblical question..."
-                rows={1}
-                className="flex-1 bg-[#1e293b] border border-gray-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-amber-500 resize-none max-h-40"
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                disabled={loading || !input.trim()}
-                className="p-3 rounded-full bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send size={20} />
-              </button>
-            </div>
-          </form>
-        </div>
       </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+        
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        .animate-in {
+          animation: fade-in 0.5s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }
