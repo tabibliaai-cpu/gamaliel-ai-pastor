@@ -17,11 +17,11 @@ export default function HomePage() {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/login" className="text-sm font-medium hover:text-brand-600 transition-colors hidden sm:block">
+              <Link href="/auth" className="text-sm font-medium hover:text-brand-600 transition-colors hidden sm:block">
                 Sign in
               </Link>
               <Link 
-                href="/register" 
+                href="/auth" 
                 className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-5 py-2.5 rounded-full text-sm font-semibold hover:opacity-90 transition-all shadow-md active:scale-95"
               >
                 Get Started
@@ -64,13 +64,13 @@ export default function HomePage() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link 
-                href="/register" 
+                href="/auth" 
                 className="w-full sm:w-auto bg-brand-600 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-brand-700 transition-all shadow-xl shadow-brand-500/25 flex items-center justify-center gap-2 group"
               >
                 Start Your Journey <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link 
-                href="/login" 
+                href="/auth" 
                 className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 px-8 py-4 rounded-full text-lg font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 Sign In
@@ -170,7 +170,7 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/register" className="w-full py-3 px-6 rounded-full border border-slate-200 dark:border-slate-800 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center text-slate-900 dark:text-white">
+              <Link href="/auth" className="w-full py-3 px-6 rounded-full border border-slate-200 dark:border-slate-800 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center text-slate-900 dark:text-white">
                 Start for Free
               </Link>
             </div>
@@ -201,7 +201,7 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/register" className="w-full py-3 px-6 rounded-full bg-brand-600 text-white font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-600/30 text-center">
+              <Link href="/auth" className="w-full py-3 px-6 rounded-full bg-brand-600 text-white font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-600/30 text-center">
                 Upgrade to Pro
               </Link>
             </div>
