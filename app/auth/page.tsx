@@ -34,7 +34,7 @@ function AuthPageContent() {
           password,
           options: {
             data: { name },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
           },
         });
         if (error) throw error;
@@ -58,7 +58,7 @@ function AuthPageContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
