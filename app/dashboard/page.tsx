@@ -119,9 +119,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
-      <header className="border-b border-black dark:border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 bg-white dark:bg-black z-10">
+      <header className="border-b border-black dark:border-gray-800 px-3 py-2 flex items-center justify-between sticky top-0 bg-white dark:bg-black z-10">
         <div className="flex items-center gap-2">
-          <span className="text-lg">✝</span>
+          
           <span className="font-black text-sm uppercase tracking-widest">Gamaliel</span>
         </div>
         <div className="flex items-center gap-2">
