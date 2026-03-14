@@ -169,7 +169,7 @@ export default function DashboardPage() {
         <section className="space-y-3">
           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Profile</p>
           <div className="border border-black dark:border-gray-600 p-4 space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
               <div className="w-10 h-10 bg-black dark:bg-white flex items-center justify-center flex-shrink-0">
                 <User className="w-5 h-5 text-white dark:text-black" />
               </div>
@@ -224,7 +224,7 @@ export default function DashboardPage() {
 
         <section className="space-y-3 pb-6">
           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Plans</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             <div className={`border border-black dark:border-gray-600 p-4 space-y-3 ${!isPaid ? 'shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)]' : 'opacity-60'}`}>
               <div className="flex justify-between items-start">
                 <h3 className="font-black text-sm uppercase">Free</h3>
